@@ -1,0 +1,7 @@
+node_modules/
+src/**/*.d.ts
+internal/**/*.d.ts
+!src/**/*-types.d.ts
+!src/**/*-globals.d.ts
+!internal/**/*-types.d.ts
+!internal/**/*-globals.d.ts

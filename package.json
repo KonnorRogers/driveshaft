@@ -1,0 +1,29 @@
+{
+  "name": "driveshaft",
+  "type": "module",
+  "version": "0.0.1",
+  "description": "",
+  "main": "exports/driveshaft.js",
+  "module": "exports/driveshaft.js",
+  "exports": {
+    ".": "./exports/driveshaft.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rimraf -g \"./{exports,internal}/**/!(*-globals|*-types).d.ts\"",
+    "build": "tsc",
+    "start": "node server.js"
+  },
+  "author": "KonnorRogers <konnor5456@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "body-parser": "^2.2.0",
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@virtualstate/navigation": "^1.0.1-alpha.212",
+    "rimraf": "^6.1.0"
+  }
+}
