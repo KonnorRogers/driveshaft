@@ -12,7 +12,12 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rimraf -g \"./{exports,internal}/**/!(*-globals|*-types).d.ts\"",
     "build": "tsc",
-    "start": "node server.js"
+    "start": "node server.js",
+    "preversion": "npm run build",
+    "prepublish": "npm run build",
+    "deploy:patch": "npm version patch && npm publish && git push --follow-tags",
+    "deploy:minor": "npm version minor && npm publish && git push --follow-tags",
+    "deploy:major": "npm version major && npm publish && git push --follow-tags"
   },
   "author": "KonnorRogers <konnor5456@gmail.com>",
   "license": "MIT",
