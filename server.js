@@ -21,11 +21,11 @@ async function start () {
   app.set('views', path.join(__dirname, 'server', 'views'));
 
   app.get("/{index.html}", (req, res, next) => {
-    res.render("index.html.ejs")
+    res.render("index.ejs.html")
   })
 
   app.get("/page-2.html", (req, res, next) => {
-    res.render("page-2.html.ejs")
+    res.render("page-2.ejs.html")
   })
 
   app.use(json({ limit: "1mb" }), urlencoded({ extended: true }))
