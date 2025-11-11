@@ -2,10 +2,10 @@
 <html lang="en">
   <head>
     <title>Index</title>
-    <%- include("_partials/head.ejs.html") %>
+    <%- include("_partials/head.html.ejs") %>
   </head>
-  <body class="page-two" data-attr-foo="bar">
-    <h1>WELCOME TO PAGE 2</h1>
+  <body class="index" data-attr="foo">
+    <h1>WELCOME TO INDEX.HTML</h1>
 
 <wa-card class="card-overview">
   <img
@@ -28,13 +28,17 @@
   }
 </style>
 
-    <form action="/" method="GET">
+    <form action="/page-2.html" method="GET">
       <input type="hidden" name="foo" value="bar">
       <button>GET</button>
     </form>
-    <form action="/" method="POST">
+    <form action="/page-2.html" method="POST">
       <input type="hidden" name="foo" value="bar">
       <button>POST</button>
     </form>
+
+    <div id="foo" data-driveshaft-permanent>
+      PERMANENT NODE
+    </div>
   </body>
 </html>

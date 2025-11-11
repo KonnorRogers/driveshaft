@@ -10,13 +10,13 @@
   import { morph } from "https://www.unpkg.com/morphlex@1.0.1/dist/morphlex.min.js"
 
   const driveShaft = new DriveShaft()
-    driveShaft.replaceStrategy = (newDOM) => {
-    // upgrade custom elements
-    const newBody = document.adoptNode(newDOM.body)
-    morph(document.head, newDOM.head)
-    morph(document.body, newBody)
-    driveShaft.syncAttributes(document.documentElement, newDOM.documentElement)
-  }
+  //   driveShaft.replaceStrategy = (newDOM) => {
+  //   // upgrade custom elements
+  //   const newBody = document.adoptNode(newDOM.body)
+  //   morph(document.head, newDOM.head)
+  //   morph(document.body, newBody)
+  //   driveShaft.syncAttributes(document.documentElement, newDOM.documentElement)
+  // }
   driveShaft.start()
   window.driveShaft = driveShaft
 </script>
