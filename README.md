@@ -16,6 +16,8 @@ This repo is extremely incomplete. Don't use this...
 - [ ] - There is no way to preserve elements.
 - [ ] - Head merging in default strategy is very...naive.
 - [ ] - Has really only tested form based navigation and not much else.
+- [ ] - Need to check scroll / focus
+- [ ] - Need to check redirects
 
 ## Installation
 

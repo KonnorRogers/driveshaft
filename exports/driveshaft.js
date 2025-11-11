@@ -1,5 +1,7 @@
 // @ts-check
 
+import { Replacer } from "./replacer.js"
+
 /**
  * @typedef {object} NavigationDestination
  * @property {string} id - Returns the id value of the destination NavigationHistoryEntry if the NavigateEvent.navigationType is traverse, or an empty string otherwise.
@@ -113,6 +115,7 @@ function urlEncodedFormData (formData) {
 export class DriveShaft {
   constructor () {
     this.domParser = new DOMParser()
+    this.replacer = new Replacer()
     this.interceptNavigation = this.interceptNavigation.bind(this)
 
     /**
@@ -214,10 +217,23 @@ export class DriveShaft {
           if (isHTMLResponse(response)) {
             const html = await response.text()
 
-            self.replaceWithNewHTML(html, self.replaceStrategy)
-            return Promise.resolve()
+            if (document.startViewTransition) {
+              // Firefox does not support this version.
+              // return document.startViewTransition({
+              //   update: () => self.replaceWithNewHTML(html, self.replaceStrategy),
+              //   // not sure if we should specify?
+              //   // types: [""]
+              // }).finished
+
+              return document.startViewTransition(() => self.replaceWithNewHTML(html, self.replaceStrategy)).finished
+            } else {
+              self.replaceWithNewHTML(html, self.replaceStrategy)
+              return Promise.resolve()
+            }
           }
         },
+        focusReset: "after-transition",
+        scroll: "after-transition"
       });
     }
   }
@@ -231,49 +247,20 @@ export class DriveShaft {
     let dom = this.domParser.parseFromString(html, "text/html")
 
 
-     if (replaceStrategy === "default") {
-      const oldNodes = Array.from(document.head.childNodes) // Array.from to make it no longer a "live" reference.
-
-      // TODO: We need a way to make sure everything has settled before replacing the `<head>` of old content. Perhaps we could look at a "merge" replaceStrategy instead?
-      setTimeout(() => {
-        for (const node of oldNodes) { node.remove() }
-      })
-
-
-      // upgrade any custom elements.
-      const newBody = document.adoptNode(dom.body)
-
-      // Update head / body elements with new attributes and remove old ones
-      this.syncAttributes(dom.head, document.head)
-      this.syncAttributes(newBody, document.body)
-      document.body.replaceChildren(...newBody.childNodes)
-      document.head.append(...dom.head.childNodes)
+    if (replaceStrategy === "default") {
+      this.replacer.replace(dom)
     } else {
       if (typeof replaceStrategy === "function") {
         replaceStrategy(dom)
       }
     }
-
   }
 
   /**
-  * @param {Element} from
-  * @param {Element} to
-  */
+   * @type {Replacer["syncAttributes"]}
+   */
   syncAttributes (from, to) {
-    // Get all attribute names from both elements
-    const fromAttrs = Array.from(from.attributes).map(attr => attr.name)
-    const toAttrs = Array.from(to.attributes).map(attr => attr.name)
-
-    toAttrs.forEach((name) => {
-      if (!fromAttrs.includes(name)) {
-        to.removeAttribute(name)
-      }
-    })
-
-    for (const { name, value } of from.attributes) {
-      to.setAttribute(name, value);
-    }
+    return Replacer.syncAttributes(from, to)
   }
 }
 

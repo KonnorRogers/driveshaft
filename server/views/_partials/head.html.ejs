@@ -1,0 +1,26 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/css/app.css">
+
+<script type="module">
+  import "https://cdn.jsdelivr.net/npm/@virtualstate/navigation@1.0.1-alpha.212/esnext/polyfill.js/+esm"
+  import { DriveShaft } from "/exports/driveshaft.js"
+
+  // @ts-expect-error
+  import { morph } from "https://www.unpkg.com/morphlex@1.0.1/dist/morphlex.min.js"
+
+  const driveShaft = new DriveShaft()
+  // driveShaft.replaceStrategy = (newDOM) => {
+    // upgrade custom elements
+    // const newBody = document.adoptNode(newDOM.body)
+    // morph(document.head, newDOM.head)
+    // morph(document.body, newBody)
+    // driveShaft.syncAttributes(document.documentElement, newDOM.documentElement)
+  // }
+  driveShaft.start()
+  window.driveShaft = driveShaft
+</script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@awesome.me/webawesome@3.0.0/dist-cdn/styles/webawesome.css">
+<script type="module" src="https://cdn.jsdelivr.net/npm/@awesome.me/webawesome@3.0.0/dist-cdn/webawesome.loader.js"></script>
+
