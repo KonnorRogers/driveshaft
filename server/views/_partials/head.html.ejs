@@ -3,12 +3,13 @@
 <link rel="stylesheet" href="/css/app.css">
 
 <script type="module">
-  import "https://cdn.jsdelivr.net/npm/@virtualstate/navigation@1.0.1-alpha.212/esnext/polyfill.js/+esm"
-  import { DriveShaft } from "/exports/driveshaft.js"
+  // import 'https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.20/+esm'
 
   // @ts-expect-error
   import { morph } from "https://www.unpkg.com/morphlex@1.0.1/dist/morphlex.min.js"
 
+  // import "https://cdn.jsdelivr.net/npm/@virtualstate/navigation@1.0.1-alpha.212/esnext/polyfill.js/+esm"
+  import { DriveShaft } from "/exports/driveshaft.js"
   const driveShaft = new DriveShaft()
   //   driveShaft.replaceStrategy = (newDOM) => {
   //   // upgrade custom elements

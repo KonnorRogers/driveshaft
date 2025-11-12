@@ -176,19 +176,25 @@ export class Replacer {
     // Find permanent placeholders in new body
     const newPermanents = newBody.querySelectorAll(this.permanentSelector);
 
+    this.syncAttributes(newBody, oldBody)
+
     // Replace placeholders with actual permanent elements
     newPermanents.forEach(placeholder => {
       const id = placeholder.id;
       const node = permanentElements.get(id)
       if (node) {
-        placeholder.replaceWith(node);
+        // moveBefore doesn't work here in FF because "node" comes from a different document.
+        placeholder.parentNode?.append(node)
+        placeholder.remove()
       }
     });
 
-    this.syncAttributes(newBody, oldBody)
-
     // Replace body content
     oldBody.replaceChildren(...newBody.children)
+
+    for (const script of oldBody.querySelectorAll("script")) {
+      script.replaceWith(this.evalScript(script))
+    }
   }
 
   /**
@@ -197,6 +203,27 @@ export class Replacer {
    */
   generateId() {
     return `driveshaft-permanent-${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  /**
+  * @param {HTMLScriptElement} element
+  */
+  evalScript(element) {
+    if (element.getAttribute("data-driveshaft-eval") === "false") {
+      return element
+    }
+
+    const newScriptElement = /** @type {HTMLScriptElement} */ (document.createElement("script"))
+    const cspNonce = getMetaElement("csp-nonce")?.content
+
+    if (cspNonce) {
+      newScriptElement.nonce = cspNonce
+    }
+
+    newScriptElement.textContent = element.textContent
+    newScriptElement.async = false
+    this.syncAttributes(newScriptElement, element)
+    return newScriptElement
   }
 }
 
@@ -218,3 +245,9 @@ function waitForLoad(element, timeoutInMilliseconds = 300) {
   }))
 }
 
+/**
+ * @param {string} name
+ */
+function getMetaElement(name) {
+  return /** @type {HTMLMetaElement} */ (document.querySelector(`meta[name="${name}"]`))
+}

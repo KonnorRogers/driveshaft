@@ -170,6 +170,7 @@ export class DriveShaft {
     if (url.host === document.location.host) {
       event.intercept({
         async handler() {
+          console.log(JSON.stringify(event))
           /**
           * @type {RequestInit}
           */
@@ -225,11 +226,24 @@ export class DriveShaft {
               //   // types: [""]
               // }).finished
 
-              return document.startViewTransition(() => self.replaceWithNewHTML(html, self.replaceStrategy)).finished
+              await document.startViewTransition(() => self.replaceWithNewHTML(html, self.replaceStrategy)).finished
             } else {
-              self.replaceWithNewHTML(html, self.replaceStrategy)
-              return Promise.resolve()
+
+              await /** @type {Promise<void>} */ (new Promise((resolve) => {
+                self.replaceWithNewHTML(html, self.replaceStrategy)
+                requestAnimationFrame(() => resolve())
+              }))
             }
+
+            const newHref = new URL(response.url).href
+            const isNewPage = new URL(document.location.href).href !== newHref
+
+            // if (isNewPage) {
+            //   window.history.pushState({}, "", newHref)
+            // } else {
+            //   window.history.replaceState({}, "", newHref)
+            // }
+            return Promise.resolve()
           }
         },
         focusReset: "after-transition",
@@ -244,8 +258,25 @@ export class DriveShaft {
    */
   replaceWithNewHTML (html, replaceStrategy = this.replaceStrategy) {
     // This is where the magic happens. Lets create a new DOM, then we'll compare the new dom vs existing DOM and then do node replacements, this lets web components properly instantiate.
-    let dom = this.domParser.parseFromString(html, "text/html")
 
+    /**
+     * @type {null | Document}
+     */
+    let dom = null
+
+    try {
+      if (typeof Document.parseHTMLUnsafe === "function") {
+        dom = Document.parseHTMLUnsafe(html)
+      } else {
+        dom = this.domParser.parseFromString(html, "text/html")
+      }
+    } catch (e) {
+      console.error(e)
+      console.error("Unable to parse new html")
+      return
+    }
+
+    if (!dom) { return }
 
     if (replaceStrategy === "default") {
       this.replacer.replace(dom)
@@ -262,5 +293,6 @@ export class DriveShaft {
   syncAttributes (from, to) {
     return Replacer.syncAttributes(from, to)
   }
+
 }
 
