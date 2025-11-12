@@ -8,6 +8,11 @@
   "exports": {
     ".": "./exports/driveshaft.js"
   },
+  "files": [
+    "exports",
+    "CHANGELOG.md",
+    "README.md"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rimraf -g \"./{exports,internal}/**/!(*-globals|*-types).d.ts\"",
