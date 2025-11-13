@@ -1,7 +1,7 @@
 {
   "name": "driveshaft",
   "type": "module",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Add SPA-like navigation to your multi page app leveraging the navigate event in the browser.",
   "main": "exports/driveshaft.js",
   "module": "exports/driveshaft.js",
