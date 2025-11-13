@@ -5,7 +5,8 @@
     <%- include("_partials/head.html.ejs") %>
   </head>
   <body class="index" data-attr="foo">
-    <h1>WELCOME TO INDEX.HTML</h1>
+
+    <h1>WELCOME TO INDEX</h1>
 
 <wa-card class="card-overview">
   <img
@@ -28,10 +29,19 @@
   }
 </style>
 
+<br>
+
+    <a href="/page-2.html" method="GET">
+      ANCHOR GET
+    </a>
+
+    <br><br>
+
     <form action="/page-2.html" method="GET">
       <input type="hidden" name="foo" value="bar">
-      <button>GET</button>
+      <button>FORM GET</button>
     </form>
+    <br>
     <form action="/page-2.html" method="POST">
       <input type="hidden" name="foo" value="bar">
       <button>POST</button>
@@ -40,5 +50,36 @@
     <div id="foo" data-driveshaft-permanent>
       PERMANENT NODE
     </div>
+
+    <!-- Using multiple sources as fallbacks for a video tag -->
+    <!-- 'Elephants Dream' by Orange Open Movie Project Studio, licensed under CC-3.0, hosted by archive.org -->
+    <!-- Poster hosted by Wikimedia -->
+    <video
+      id="perm-video"
+      width="620"
+      controls
+      poster="https://upload.wikimedia.org/wikipedia/commons/e/e8/Elephants_Dream_s5_both.jpg"
+      data-driveshaft-permanent
+      data-turbo-permanent
+    >
+
+      <source
+        src="https://archive.org/download/ElephantsDream/ed_hd.avi"
+        type="video/avi" />
+      <source
+        src="https://archive.org/download/ElephantsDream/ed_1024_512kb.mp4"
+        type="video/mp4" />
+
+      Sorry, your browser doesn't support embedded videos, but don't worry, you can
+      <a
+        href="https://archive.org/download/ElephantsDream/ed_1024_512kb.mp4"
+        download="ed_1024_512kb.mp4">
+        download the MP4
+      </a>
+      and watch it with your favorite video player!
+    </video>
+
+
+    <script>console.log("Hello World")</script>
   </body>
 </html>

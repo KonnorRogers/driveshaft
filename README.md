@@ -12,25 +12,23 @@ This repo is extremely incomplete. Don't use this...
 
 ## Missing Features
 
-- [ ] - There are no view transitions currently.
-- [ ] - There is no way to preserve elements.
-- [ ] - Head merging in default strategy is very...naive.
-- [ ] - Has really only tested form based navigation and not much else.
-- [ ] - Need to check scroll / focus
+- [x] - There are no view transitions currently.
+- [x] - There is no way to preserve elements.
+- [ ] - Head merging in default strategy is ~~very...naive~~ still needs to be tested thoroughly.
+- [ ] - Has really only tested form based navigation + anchor navigation, and not much else.
+- [ ] - Need to check scroll / focus state
 - [ ] - Need to check redirects
+- [ ] - Requires hooks (either js based or event based) to allow customizing behavior.
 
 ## Installation
 
 ```bash
-npm install driveshaft @virtualstate/navigation
+npm install driveshaft
 ```
 
 ## Usage
 
 ```js
-// Optional polyfill (trust me, just use it. `navigate` isn't supported in any browser except Chrome)
-import "@virtualstate/navigation/polyfill"
-
 import { DriveShaft } from "driveshaft"
 new DriveShaft().start()
 ```
@@ -43,7 +41,6 @@ npm install morphlex
 ```
 
 ```js
-import "@virtualstate/navigation/polyfill"
 import { morph } from "morphlex"
 
 import { DriveShaft } from "driveshaft"

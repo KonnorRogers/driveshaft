@@ -1,6 +1,7 @@
 // @ts-check
 
 import { Replacer } from "./replacer.js"
+import { LinkClickObserver } from "./link-click-observer.js"
 
 /**
  * @typedef {object} NavigationDestination
@@ -100,9 +101,9 @@ function isHTMLResponse (response) {
 
 /**
  * @param {FormData} formData
+ * @param {URLSearchParams} searchParams - if search params passed, will "mutate" them and append the proper keys.
  */
-function urlEncodedFormData (formData) {
-  const searchParams = new URLSearchParams()
+function urlEncodedFormData (formData, searchParams = new URLSearchParams()) {
   for (const [name, value] of formData) {
     if (value instanceof File) { continue }
 
@@ -116,7 +117,20 @@ export class DriveShaft {
   constructor () {
     this.domParser = new DOMParser()
     this.replacer = new Replacer()
+    this.linkClickObserver = new LinkClickObserver()
+    this.linkClickObserver.shouldStopNativeNavigation = ({location, event, anchorElement}) => true
+
+    /**
+     * @type {AbortController | null}
+     */
+    this.currentAbortController = null
+
+    this.linkClickObserver.navigate = async ({location, event, anchorElement}) => {
+      this.handleLinkNavigation(location, anchorElement)
+    }
+
     this.interceptNavigation = this.interceptNavigation.bind(this)
+    this.handleFormNavigation = this.handleFormNavigation.bind(this)
 
     /**
      * @type {"default" | ((newDocument: Document) => void)}
@@ -124,9 +138,114 @@ export class DriveShaft {
     this.replaceStrategy = "default"
   }
 
+  /**
+   * @param {string} location
+   * @param {HTMLAnchorElement | null} anchorElement
+   */
+  async handleLinkNavigation (location, anchorElement) {
+    if (!anchorElement) { return }
+
+    if (this.currentAbortController) {
+      this.currentAbortController.abort()
+    }
+
+    this.currentAbortController = new AbortController()
+
+    // TODO: Need to store scroll / focus locations for the polyfill.
+
+    // This is always a link click.
+    const response = await this.handleNavigation({
+      sourceElement: anchorElement,
+      url: location,
+      formData: null,
+      signal: this.currentAbortController.signal
+    })
+
+    if (!response) { return }
+
+    const newHref = new URL(response.url).href
+    const isNewPage = new URL(document.location.href).href !== newHref
+
+    if (isNewPage) {
+      window.history.pushState({}, "", newHref)
+    } else {
+      // Should we check query params et al?
+      // window.history.replaceState({}, "", newHref)
+    }
+  }
+
+  /**
+   * @param {SubmitEvent} event
+   */
+  async handleFormNavigation (event) {
+    if (event.defaultPrevented) { return }
+
+    if (this.currentAbortController) {
+      this.currentAbortController.abort()
+    }
+
+    this.currentAbortController = new AbortController()
+
+    /**
+     * @type {null | undefined | string}
+     */
+    let location = null
+
+    if (event.submitter) {
+      location = this.getLocationFromSourceElement(event.submitter)
+    }
+
+    const form = /** @type {null | HTMLFormElement} */ (event.composedPath().find((el) => /** @type {Element} */ (el)?.localName === "form"))
+
+    if (!form) { return }
+
+    if (!location) {
+      location = form.action
+    }
+
+    if (!location) { return }
+
+    event.preventDefault()
+    // TODO: Need to store scroll / focus locations for the polyfill.
+
+    const formData = new FormData(form)
+
+    const method = (event.submitter?.getAttribute("formmethod") || /** @type {string | null} */ (formData.get("_method")) || form.method || "get").toLowerCase()
+
+    const url = new URL(location)
+
+    if (method === "get") {
+      // mutate search params
+      urlEncodedFormData(formData, url.searchParams)
+    }
+
+    // This is always a form submission.
+    const response = await this.handleNavigation({
+      sourceElement: event.submitter,
+      url: url.href,
+      formData: method === "get" ? null : formData,
+      signal: this.currentAbortController.signal
+    })
+
+    if (!response) { return }
+
+    const newHref = new URL(response.url).href
+    const isNewPage = new URL(document.location.href).href !== newHref
+
+    if (isNewPage) {
+      window.history.pushState({}, "", newHref)
+    } else {
+      // Should we check query params et al?
+      // window.history.replaceState({}, "", newHref)
+    }
+  }
+
   start () {
     // @ts-expect-error
-    if (typeof window.navigation !== "undefined") {
+    if (typeof window.navigation === "undefined") {
+      this.linkClickObserver.start()
+      document.addEventListener("submit", this.handleFormNavigation)
+    } else {
       // @ts-expect-error
       navigation.addEventListener("navigate", this.interceptNavigation);
     }
@@ -138,6 +257,9 @@ export class DriveShaft {
       // @ts-expect-error
       navigation.removeEventListener("navigate", this.interceptNavigation);
     }
+
+    document.removeEventListener("submit", this.handleFormNavigation)
+    this.linkClickObserver.stop()
   }
 
   /**
@@ -149,92 +271,106 @@ export class DriveShaft {
       return;
     }
 
-    // We bind this at the top so its always DriveShaft.
-    const self = /** @type {DriveShaft} */ (this)
-
-    // Because the polyfill doesn't work correctly on forms, we have to check the sourceElement href / formaction / form.action
-    // This will likely should really only ever be a button or an `<a>` (currently).
-    const sourceElement = /** @type {HTMLAnchorElement | HTMLButtonElement} */ (event.sourceElement || event.originalEvent.submitter)
-    const href = sourceElement.localName === "a" ? /** @type {HTMLAnchorElement} */ (sourceElement).href : ""
-    const form = /** @type {HTMLButtonElement} */ (sourceElement).form || null
-    const formAction = sourceElement.localName === "button" ? sourceElement.getAttribute("formaction") : null
-
-    const location = href || formAction || form?.action
+    const location = this.getLocationFromSourceElement(event.sourceElement)
 
     if (!location) { return }
 
     // This is what works natively in Chrome for forms. But because of a bug in the polyfill, we need the above checks.
-    // const url = new URL(event.destination.url)
-    const url = new URL(location)
+    const url = new URL(event.destination.url)
 
     if (url.host === document.location.host) {
       event.intercept({
-        async handler() {
-          /**
-          * @type {RequestInit}
-          */
-          const options = {
-            redirect: "follow",
-            signal: event.signal,
-            credentials: "same-origin",
-            referrer: window.location.href
-          }
-
-          /**
-          * @type {Response | null}
-          */
-          let response = null
-
-          const formData = event.formData
-
-          if (formData) {
-            // if there is formData, its a POST.
-
-            // Check the srcElement to see if we have a different "method" defined.
-
-            /**
-            * Lets us support PATCH / PUT / DELETE etc.
-            */
-            const method = sourceElement.getAttribute("formmethod") || /** @type {string | null} */ (formData.get("_method")) || "post"
-            const enctype = sourceElement.getAttribute("formenctype") || /** @type {HTMLButtonElement} */ (sourceElement).form?.enctype || "application/x-www-form-urlencoded"
-
-            const body = enctype === "multipart/form-data" ? formData : urlEncodedFormData(formData)
-            response = await fetch(url, {
-              ...options,
-              method,
-              body
-            })
-          } else {
-            // I think url should have search params prefilled by browser.
-            response = await fetch(url, {
-              ...options,
-              method: "get"
-            })
-          }
-
-          if (!response) { return }
-
-          if (isHTMLResponse(response)) {
-            const html = await response.text()
-
-            if (document.startViewTransition) {
-              // Firefox does not support this version.
-              // return document.startViewTransition({
-              //   update: () => self.replaceWithNewHTML(html, self.replaceStrategy),
-              //   // not sure if we should specify?
-              //   // types: [""]
-              // }).finished
-
-              return document.startViewTransition(() => self.replaceWithNewHTML(html, self.replaceStrategy)).finished
-            } else {
-              self.replaceWithNewHTML(html, self.replaceStrategy)
-              return Promise.resolve()
-            }
-          }
-        },
+        // its want a void Promise, but i want to re-use the response from the promise in the polyfill.
+        // @ts-expect-error
+        handler: async () => await this.handleNavigation({
+          sourceElement: event.sourceElement,
+          formData: event.formData,
+          signal: event.signal,
+          url: url.href
+        }),
         focusReset: "after-transition",
         scroll: "after-transition"
       });
+    }
+  }
+
+  /**
+   * @param {{
+     signal: AbortSignal | null
+     url: string
+     formData: FormData | null
+     sourceElement: Element | null
+   }} params
+   */
+  async handleNavigation (params) {
+    // We bind this at the top so its always DriveShaft.
+    const self = /** @type {DriveShaft} */ (this)
+
+    /**
+    * @type {RequestInit}
+    */
+    const options = {
+      redirect: "follow",
+      signal: params.signal,
+      credentials: "same-origin",
+      referrer: window.location.href
+    }
+
+    /**
+    * @type {Response | null}
+    */
+    let response = null
+
+    const formData = params.formData
+
+    if (formData) {
+      // if there is formData, its a POST.
+
+      // Check the srcElement to see if we have a different "method" defined.
+
+      /**
+      * Lets us support PATCH / PUT / DELETE etc.
+      */
+      const method = params.sourceElement?.getAttribute("formmethod") || /** @type {string | null} */ (formData.get("_method")) || "post"
+      const enctype = params.sourceElement?.getAttribute("formenctype") || /** @type {HTMLButtonElement} */ (params.sourceElement).form?.enctype || "application/x-www-form-urlencoded"
+
+      const body = enctype === "multipart/form-data" ? formData : urlEncodedFormData(formData)
+      response = await fetch(params.url, {
+        ...options,
+        method,
+        body
+      })
+    } else {
+      // I think url should have search params prefilled by browser.
+      response = await fetch(params.url, {
+        ...options,
+        method: "get"
+      })
+    }
+
+    if (!response) { return Promise.resolve() }
+
+    if (isHTMLResponse(response)) {
+      const html = await response.text()
+
+      if (document.startViewTransition) {
+        // Firefox does not support this version.
+        // return document.startViewTransition({
+        //   update: () => self.replaceWithNewHTML(html, self.replaceStrategy),
+        //   // not sure if we should specify?
+        //   // types: [""]
+        // }).finished
+
+        await document.startViewTransition(() => self.replaceWithNewHTML(html, self.replaceStrategy)).finished
+      } else {
+
+        await /** @type {Promise<void>} */ (new Promise((resolve) => {
+          self.replaceWithNewHTML(html, self.replaceStrategy)
+          requestAnimationFrame(() => resolve())
+        }))
+      }
+
+      return Promise.resolve(response)
     }
   }
 
@@ -244,8 +380,25 @@ export class DriveShaft {
    */
   replaceWithNewHTML (html, replaceStrategy = this.replaceStrategy) {
     // This is where the magic happens. Lets create a new DOM, then we'll compare the new dom vs existing DOM and then do node replacements, this lets web components properly instantiate.
-    let dom = this.domParser.parseFromString(html, "text/html")
 
+    /**
+     * @type {null | Document}
+     */
+    let dom = null
+
+    try {
+      if (typeof Document.parseHTMLUnsafe === "function") {
+        dom = Document.parseHTMLUnsafe(html)
+      } else {
+        dom = this.domParser.parseFromString(html, "text/html")
+      }
+    } catch (e) {
+      console.error(e)
+      console.error("Unable to parse new html")
+      return
+    }
+
+    if (!dom) { return }
 
     if (replaceStrategy === "default") {
       this.replacer.replace(dom)
@@ -261,6 +414,19 @@ export class DriveShaft {
    */
   syncAttributes (from, to) {
     return Replacer.syncAttributes(from, to)
+  }
+
+  /**
+   * @param {Element} srcElement
+   */
+  getLocationFromSourceElement(srcElement) {
+    // This will likely should really only ever be a button or an `<a>` (currently).
+    const sourceElement = /** @type {HTMLAnchorElement | HTMLButtonElement} */ (srcElement)
+    const href = sourceElement.localName === "a" ? /** @type {HTMLAnchorElement} */ (sourceElement).href : ""
+    const form = /** @type {HTMLButtonElement} */ (sourceElement).form || null
+    const formAction = sourceElement.localName === "button" ? sourceElement.getAttribute("formaction") : null
+
+    return href || formAction || form?.action
   }
 }
 
