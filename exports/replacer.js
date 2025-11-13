@@ -40,9 +40,8 @@ export class Replacer {
 
   /**
    * @param {Document} newDocument
-   * @param {Document} [oldDocument=document]
    */
-  replace (newDocument, oldDocument = document) {
+  replace (newDocument) {
     this.replacePage(newDocument)
   }
 
@@ -133,17 +132,17 @@ export class Replacer {
     const tag = el.tagName.toLowerCase();
 
     // For scripts and styles, use src/href as key
-    if (tag === 'script' && el.src) {
-      return `script[src="${el.src}"]`;
+    if (tag === 'script' && /** @type {HTMLScriptElement} */ (el).src) {
+      const src = /** @type {HTMLScriptElement} */ (el).src
+      return `script[src="${src}"]`;
     }
-    if (tag === 'link' && el.href) {
-      return `link[href="${el.href}"][rel="${el.rel}"]`;
+    if (tag === 'link' && /** @type {HTMLLinkElement} */ (el).href) {
+      const link = /** @type {HTMLLinkElement} */ (el)
+      return `link[href="${link.href}"][rel="${link.rel}"]`;
     }
-    if (tag === 'meta' && el.name) {
-      return `meta[name="${el.name}"]`;
-    }
-    if (tag === 'meta' && el.property) {
-      return `meta[property="${el.property}"]`;
+    if (tag === 'meta' && /** @type {HTMLMetaElement} */ (el).name) {
+      const meta = /** @type {HTMLMetaElement} */ (el)
+      return `meta[name="${meta.name}"]`;
     }
 
     // For inline styles/scripts, use content hash
