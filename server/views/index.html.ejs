@@ -5,16 +5,8 @@
     <%- include("_partials/head.html.ejs") %>
   </head>
   <body class="index" data-attr="foo">
-    <header>
-      <h1>
-        <a href="#">
-          <img
-            class="fit-picture"
-            src="https://developer.mozilla.org/shared-assets/images/examples/grapefruit-slice.jpg"
-            alt="Grapefruit slice atop a pile of other slices">
-        </a>
-      </h1>
-    </header>
+
+    <h1>WELCOME TO INDEX</h1>
 
 <wa-card class="card-overview">
   <img
@@ -37,10 +29,19 @@
   }
 </style>
 
+<br>
+
+    <a href="/page-2.html" method="GET">
+      ANCHOR GET
+    </a>
+
+    <br><br>
+
     <form action="/page-2.html" method="GET">
       <input type="hidden" name="foo" value="bar">
-      <button>GET</button>
+      <button>FORM GET</button>
     </form>
+    <br>
     <form action="/page-2.html" method="POST">
       <input type="hidden" name="foo" value="bar">
       <button>POST</button>
