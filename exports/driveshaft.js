@@ -310,7 +310,6 @@ export class DriveShaft {
     * @type {RequestInit}
     */
     const options = {
-      redirect: "follow",
       signal: params.signal,
       credentials: "same-origin",
       referrer: window.location.href
@@ -335,6 +334,7 @@ export class DriveShaft {
       const enctype = params.sourceElement?.getAttribute("formenctype") || /** @type {HTMLButtonElement} */ (params.sourceElement).form?.enctype || "application/x-www-form-urlencoded"
 
       const body = enctype === "multipart/form-data" ? formData : urlEncodedFormData(formData)
+
       response = await fetch(params.url, {
         ...options,
         method,
