@@ -1,3 +1,10 @@
+## Next
+
+### Dependencies
+
+- Remove `@virtualstate/navigation` from dependencies
+- Move `rimraf` into `devDependencies`
+
 ## v0.0.3 - 2025-11-12
 
 ### Changes
