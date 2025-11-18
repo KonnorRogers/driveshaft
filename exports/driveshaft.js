@@ -3,6 +3,8 @@
 import { Replacer } from "./replacer.js"
 import { LinkClickObserver } from "./link-click-observer.js"
 
+const brand = Symbol("driveshaftbrand")
+
 /**
  * @typedef {object} NavigationDestination
  * @property {string} id - Returns the id value of the destination NavigationHistoryEntry if the NavigateEvent.navigationType is traverse, or an empty string otherwise.
@@ -118,7 +120,12 @@ export class DriveShaft {
     this.domParser = new DOMParser()
     this.replacer = new Replacer()
     this.linkClickObserver = new LinkClickObserver()
-    this.linkClickObserver.shouldStopNativeNavigation = ({location, event, anchorElement}) => true
+    this.linkClickObserver.shouldStopNativeNavigation = ({location, event, anchorElement}) => {
+      // @ts-expect-error We tried to use ajax navigation, it failed.
+      if (anchorElement[brand]) { return false }
+
+      return true
+    }
 
     /**
      * @type {AbortController | null}
@@ -158,10 +165,13 @@ export class DriveShaft {
       sourceElement: anchorElement,
       url: location,
       formData: null,
-      signal: this.currentAbortController.signal
+      signal: this.currentAbortController.signal,
+      eventType: "click"
     })
 
-    if (!response) { return }
+    if (!response) {
+      return
+    }
 
     const newHref = new URL(response.url).href
     const isNewPage = new URL(document.location.href).href !== newHref
@@ -180,11 +190,12 @@ export class DriveShaft {
   async handleFormNavigation (event) {
     if (event.defaultPrevented) { return }
 
-    if (this.currentAbortController) {
-      this.currentAbortController.abort()
-    }
+    const form = /** @type {null | HTMLFormElement} */ (event.composedPath().find((el) => /** @type {Element} */ (el)?.localName === "form"))
 
-    this.currentAbortController = new AbortController()
+    if (!form) { return }
+
+    // @ts-expect-error
+    if (form[brand]) { return }
 
     /**
      * @type {null | undefined | string}
@@ -195,9 +206,6 @@ export class DriveShaft {
       location = this.getLocationFromSourceElement(event.submitter)
     }
 
-    const form = /** @type {null | HTMLFormElement} */ (event.composedPath().find((el) => /** @type {Element} */ (el)?.localName === "form"))
-
-    if (!form) { return }
 
     if (!location) {
       location = form.action
@@ -205,9 +213,13 @@ export class DriveShaft {
 
     if (!location) { return }
 
-    event.preventDefault()
-    // TODO: Need to store scroll / focus locations for the polyfill.
+    if (this.currentAbortController) {
+      this.currentAbortController.abort()
+    }
 
+    this.currentAbortController = new AbortController()
+
+    // TODO: Need to store scroll / focus locations for the polyfill.
     const formData = new FormData(form)
 
     const method = (event.submitter?.getAttribute("formmethod") || /** @type {string | null} */ (formData.get("_method")) || form.method || "get").toLowerCase()
@@ -219,15 +231,22 @@ export class DriveShaft {
       urlEncodedFormData(formData, url.searchParams)
     }
 
+    event.preventDefault()
+
+
+    const sourceElement = event.submitter
     // This is always a form submission.
     const response = await this.handleNavigation({
-      sourceElement: event.submitter,
+      sourceElement,
       url: url.href,
       formData: method === "get" ? null : formData,
-      signal: this.currentAbortController.signal
+      signal: this.currentAbortController.signal,
+      eventType: "submit",
     })
 
-    if (!response) { return }
+    if (!response) {
+      return
+    }
 
     const newHref = new URL(response.url).href
     const isNewPage = new URL(document.location.href).href !== newHref
@@ -279,6 +298,14 @@ export class DriveShaft {
     const url = new URL(event.destination.url)
 
     if (url.host === document.location.host) {
+      const sourceElement = event.sourceElement
+
+      // Don't try to AJAX navigate these. We already tried once.
+      // @ts-expect-error
+      if (sourceElement?.[brand] || sourceElement?.form?.[brand]) {
+        return
+      }
+
       event.intercept({
         // its want a void Promise, but i want to re-use the response from the promise in the polyfill.
         // @ts-expect-error
@@ -286,7 +313,8 @@ export class DriveShaft {
           sourceElement: event.sourceElement,
           formData: event.formData,
           signal: event.signal,
-          url: url.href
+          url: url.href,
+          eventType: "navigate"
         }),
         focusReset: "after-transition",
         scroll: "after-transition"
@@ -298,6 +326,7 @@ export class DriveShaft {
    * @param {{
      signal: AbortSignal | null
      url: string
+     eventType: "navigate" | "submit" | "click"
      formData: FormData | null
      sourceElement: Element | null
    }} params
@@ -310,7 +339,6 @@ export class DriveShaft {
     * @type {RequestInit}
     */
     const options = {
-      redirect: "follow",
       signal: params.signal,
       credentials: "same-origin",
       referrer: window.location.href
@@ -335,23 +363,54 @@ export class DriveShaft {
       const enctype = params.sourceElement?.getAttribute("formenctype") || /** @type {HTMLButtonElement} */ (params.sourceElement).form?.enctype || "application/x-www-form-urlencoded"
 
       const body = enctype === "multipart/form-data" ? formData : urlEncodedFormData(formData)
-      response = await fetch(params.url, {
-        ...options,
-        method,
-        body
-      })
+
+      try {
+        response = await fetch(params.url, {
+          ...options,
+          method,
+          body
+        })
+      } catch (e) {
+        console.error(`[Driveshaft]: Unable to navigate to ${params.url} with "${method}". Falling back to full page navigation.`)
+        console.error(e)
+        if (params.sourceElement) {
+
+          if (params.eventType === "navigate") {
+            // Work around for native "navigate" event which eagerly pushes to the history stack.
+            // For some reason POST requests push multiple to the history stack.
+            window.history.back()
+          }
+          this.handleFormError(params.sourceElement)
+        }
+        return Promise.reject(null)
+      }
     } else {
       // I think url should have search params prefilled by browser.
-      response = await fetch(params.url, {
-        ...options,
-        method: "get"
-      })
+      try {
+        response = await fetch(params.url, {
+          ...options,
+          method: "get"
+        })
+      } catch (e) {
+        console.error(`[Driveshaft]: Unable to navigate to ${params.url} with "GET". Falling back to full page navigation.`)
+        console.error(e)
+
+        if (params.sourceElement) {
+          if (params.eventType === "navigate") {
+            // Work around for native "navigate" event which eagerly pushes to the history stack.
+            // window.history.replaceState({}, "", document.location.href)
+          }
+          this.handleFormError(params.sourceElement)
+        }
+        return Promise.reject(null)
+      }
     }
 
-    if (!response) { return Promise.resolve() }
+    if (!response) { return Promise.reject(null) }
 
     if (isHTMLResponse(response)) {
-      const html = await response.text()
+      // allow the response to be read again.
+      const html = await response.clone().text()
 
       if (document.startViewTransition) {
         // Firefox does not support this version.
@@ -369,8 +428,40 @@ export class DriveShaft {
           requestAnimationFrame(() => resolve())
         }))
       }
+    }
 
-      return Promise.resolve(response)
+    return Promise.resolve(response)
+  }
+
+  /**
+   * @param {Element} trigger
+   */
+  handleFormError (trigger) {
+    // @ts-expect-error
+    trigger[brand] = brand
+
+    const sourceElement = /** @type {(HTMLButtonElement | HTMLFormElement | HTMLAnchorElement)} */ (trigger)
+
+    const form = sourceElement.localName === "form" ? /** @type {HTMLFormElement} */ (sourceElement) : null
+    const button = sourceElement.localName === "button" ? /** @type {HTMLButtonElement} */ (sourceElement) : null;
+    const anchor = sourceElement.localName === "a" ? /** @type {HTMLAnchorElement} */ (sourceElement) : null;
+
+    if (button) {
+      const buttonForm = button.form
+
+      if (buttonForm) {
+        // @ts-expect-error
+        buttonForm[brand] = brand
+        buttonForm.requestSubmit(button)
+      }
+    }
+
+    if (form) {
+      form.requestSubmit(null)
+    }
+
+    if (anchor) {
+      anchor.click()
     }
   }
 
@@ -394,7 +485,7 @@ export class DriveShaft {
       }
     } catch (e) {
       console.error(e)
-      console.error("Unable to parse new html")
+      console.error("[Driveshaft]: Unable to parse new html")
       return
     }
 

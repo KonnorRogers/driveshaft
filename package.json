@@ -17,7 +17,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rimraf -g \"./{exports,internal}/**/!(*-globals|*-types).d.ts\"",
     "build": "npm run clean && tsc",
-    "start": "node server.js",
+    "start": "node --watch server.js",
     "preversion": "npm run build",
     "prepublish": "npm run build",
     "deploy:patch": "npm version patch && npm publish && git push --follow-tags",
@@ -28,10 +28,13 @@
   "license": "MIT",
   "devDependencies": {
     "body-parser": "^2.2.0",
+    "chokidar": "^4.0.3",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
+    "livereload": "^0.10.3",
     "multer": "^2.0.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "ws": "^8.18.3"
   },
   "dependencies": {
     "@virtualstate/navigation": "^1.0.1-alpha.212",

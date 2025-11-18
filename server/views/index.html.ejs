@@ -8,6 +8,20 @@
 
     <h1>WELCOME TO INDEX</h1>
 
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <form action="/redirect-external" method="POST">
+        <button>Redirect to example.com via form</button>
+      </form>
+
+      <a href="/redirect-external">Redirect to "example.com" via anchor</a>
+
+      <form action="/redirect-internal" method="POST">
+        <button>Redirect to "/page-2.html" via form</button>
+      </form>
+    </div>
+
+    <br>
+
 <wa-card class="card-overview">
   <img
     slot="media"
