@@ -165,7 +165,8 @@ export class DriveShaft {
       sourceElement: anchorElement,
       url: location,
       formData: null,
-      signal: this.currentAbortController.signal
+      signal: this.currentAbortController.signal,
+      eventType: "click"
     })
 
     if (!response) {
@@ -239,7 +240,8 @@ export class DriveShaft {
       sourceElement,
       url: url.href,
       formData: method === "get" ? null : formData,
-      signal: this.currentAbortController.signal
+      signal: this.currentAbortController.signal,
+      eventType: "submit",
     })
 
     if (!response) {
@@ -303,6 +305,7 @@ export class DriveShaft {
       if (sourceElement?.[brand] || sourceElement?.form?.[brand]) {
         return
       }
+
       event.intercept({
         // its want a void Promise, but i want to re-use the response from the promise in the polyfill.
         // @ts-expect-error
@@ -310,7 +313,8 @@ export class DriveShaft {
           sourceElement: event.sourceElement,
           formData: event.formData,
           signal: event.signal,
-          url: url.href
+          url: url.href,
+          eventType: "navigate"
         }),
         focusReset: "after-transition",
         scroll: "after-transition"
@@ -322,6 +326,7 @@ export class DriveShaft {
    * @param {{
      signal: AbortSignal | null
      url: string
+     eventType: "navigate" | "submit" | "click"
      formData: FormData | null
      sourceElement: Element | null
    }} params
@@ -369,9 +374,15 @@ export class DriveShaft {
         console.error(`[Driveshaft]: Unable to navigate to ${params.url} with "${method}". Falling back to full page navigation.`)
         console.error(e)
         if (params.sourceElement) {
+
+          if (params.eventType === "navigate") {
+            // Work around for native "navigate" event which eagerly pushes to the history stack.
+            // For some reason POST requests push multiple to the history stack.
+            window.history.back()
+          }
           this.handleFormError(params.sourceElement)
         }
-        return null
+        return Promise.reject(null)
       }
     } else {
       // I think url should have search params prefilled by browser.
@@ -385,13 +396,17 @@ export class DriveShaft {
         console.error(e)
 
         if (params.sourceElement) {
+          if (params.eventType === "navigate") {
+            // Work around for native "navigate" event which eagerly pushes to the history stack.
+            // window.history.replaceState({}, "", document.location.href)
+          }
           this.handleFormError(params.sourceElement)
         }
-        return null
+        return Promise.reject(null)
       }
     }
 
-    if (!response) { return Promise.resolve(null) }
+    if (!response) { return Promise.reject(null) }
 
     if (isHTMLResponse(response)) {
       // allow the response to be read again.
