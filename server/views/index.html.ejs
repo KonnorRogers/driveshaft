@@ -8,16 +8,17 @@
 
     <h1>WELCOME TO INDEX</h1>
 
-    <form action="/redirect-external" method="POST">
-      <button>Redirect to example.com via form</button>
-    </form>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <form action="/redirect-external" method="POST">
+        <button>Redirect to example.com via form</button>
+      </form>
 
-    <form action="/redirect-internal" method="POST">
-      <button>Redirect to "/" via form</button>
-    </form>
+      <a href="/redirect-external">Redirect to "example.com" via anchor</a>
 
-    HRELLO WORLD
-
+      <form action="/redirect-internal" method="POST">
+        <button>Redirect to "/page-2.html" via form</button>
+      </form>
+    </div>
 
     <br>
 

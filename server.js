@@ -75,8 +75,12 @@ async function start () {
     res.redirect(303, "https://example.com")
   })
 
+  app.get("/redirect-external", (req, res, next) => {
+    res.redirect(303, "https://example.com")
+  })
+
   app.post("/redirect-internal", (req, res, next) => {
-    res.redirect(303, "/index.html")
+    res.redirect(303, "/page-2.html")
   })
 
   app.get("/page-2.html", (req, res, next) => {
